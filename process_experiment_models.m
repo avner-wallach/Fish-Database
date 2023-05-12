@@ -1,0 +1,61 @@
+function [database] = process_experiment_models(database,expname,mode)
+K=find(cellfun(@(x) strcmp(x,expname),{database.experiments.expname}));
+if(~numel(K))
+    return;
+end
+
+switch mode
+    case 1
+        if(numel(database.experiments(K).brassseg))
+            segnum=database.experiments(K).brassseg;
+            objidx=1;
+        else
+            return;
+        end
+        
+    case 0
+        if(numel(database.experiments(K).wallseg))
+            segnum=database.experiments(K).wallseg;
+        else
+            segnum=database.experiments(K).brassseg;
+        end
+        objidx=0;
+end
+
+%load data
+load(['z:\analysis_data\',expname,filesep,'output.mat']);
+
+groupcols=find(cellfun(@(x) numel(strfind(x,'lfp')),eod(segnum).fnames));
+
+%shuffled position control
+EOD_c=eod(segnum);
+I=randperm(size(EOD_c.data,1));
+EOD_c.data(:,2:4)=EOD_c.data(I,2:4);
+
+for i=1:numel(groupcols)
+    i
+%     G=get_regression_models(eod(segnum),file(segnum),groupcols(i),'objidx',objidx);    
+    G=get_regression_models_univar(eod(segnum),file(segnum),groupcols(i),'objidx',objidx,'t_col',6);    
+    [G.tail_v_flat,G.tail_v_weighted,G.tail_Uxy]=process_map(eod(segnum),file(segnum),groupcols(i),objidx,6,'slope');
+    [G.tail_v_flat_ctl,G.tail_v_weighted_ctl,G.tail_Uxy_ctl]=process_map(EOD_c,file(segnum),groupcols(i),objidx,6,'slope');
+    G.objidx=objidx;
+    group(i)=G;        
+
+%     G=database.experiments(K).groups(i);
+    
+%     G.decoding = evaluate_regression_models(eod(segnum),file(segnum),G,'plotting',0,'objidx',objidx);    
+%     G.C_total = get_models_reafference(eod(segnum),file(segnum),G,'objidx',objidx);
+%     [G.rate_v,G.rate_Uxy]=process_map(eod(segnum),file(segnum),groupcols(i),objidx,1,'slope');
+%     [G.rate_v_ctl,G.rate_Uxy_ctl]=process_map(EOD_c,file(segnum),groupcols(i),objidx,1,'slope');
+%     group(i)=G;        
+end
+database.experiments(K).groups=group;        
+end
+
+function [v_flat,v_weighted,Izt_xy]=process_map(EOD,FILE,GCOL,OBJI,t_col,mode)
+    [Mz,N0]=plot_tuning2d(EOD,FILE,GCOL,'t_col',t_col,'mfunc',mode,'objidx',OBJI,'plotting',0);        
+    [ Izt,Izt_xy,Izxy,Izxy_t,izt_xy ] = compute_info(EOD,FILE,GCOL,'t_col',t_col,'objidx',OBJI);     
+    v_flat=nanvar(Mz(:));
+    v_weighted=nanvar(Mz(:).*N0(:)/nansum(N0(:)));
+end
+

@@ -1,0 +1,6 @@
+function [database] = generate_databse()
+%GENERATE_DATABASE construct and populate tables of entire dtabase
+unit=struct('uname',
+experiment=struct('expname','','
+end
+
